@@ -20,6 +20,7 @@ import {
 } from "./schema";
 import { serialize } from "borsh";
 import { createMetadataInstruction } from "./utils";
+import { readFileSync } from "fs";
 
 const DECIMALS = 2;
 
@@ -32,24 +33,13 @@ function delay(ms: number) {
 }
 
 async function main() {
-  let connection: Connection = new Connection(
-    "https://api.devnet.solana.com",
-    "confirmed"
-  );
+  let connection = new Connection("https://api.devnet.solana.com", "confirmed");
 
   let mintId = new Keypair();
-  let mintAuthority = new Keypair();
   console.log(`Mint ID: ${mintId.publicKey.toString()}`);
-  console.log(`Mint Authority: ${mintAuthority.publicKey.toString()}`);
 
-  let sig = await connection.requestAirdrop(mintId.publicKey, LAMPORTS_PER_SOL);
-  await connection.confirmTransaction(sig);
-
-  sig = await connection.requestAirdrop(
-    mintAuthority.publicKey,
-    LAMPORTS_PER_SOL
-  );
-  await connection.confirmTransaction(sig);
+  const secret = JSON.parse(readFileSync("<PRIVATE_KEY>.json", "utf8"));
+  const mintAuthority = Keypair.fromSecretKey(Uint8Array.from(secret));
 
   const data = new Data({
     symbol: "ALICE",
@@ -59,10 +49,10 @@ async function main() {
     creators: null
   });
 
-  await createDecoratedSPL(connection, mintAuthority, mintId, data);
+  await createDecoratedSPL(connection, mintId, mintAuthority, data);
 
-  let user = new PublicKey("PanbgtcTiZ2PveV96t2FHSffiLHXXjMuhvoabUUKKm8");
-  let amount = 13;
+  let user = new PublicKey("<USER_ADDRESS>");
+  let amount = 1300;
 
   await mintSomeTokens(
     connection,
@@ -153,6 +143,7 @@ async function createDecoratedSPL(
 
   const txSignature = await connection.sendRawTransaction(tx.serialize());
   console.log(txSignature);
+  await connection.confirmTransaction(txSignature);
 }
 
 async function mintSomeTokens(
@@ -177,7 +168,7 @@ async function mintSomeTokens(
       TOKEN_PROGRAM_ID,
       mint,
       assoc,
-      assoc,
+      user,
       authority.publicKey
     );
 
